@@ -1,5 +1,6 @@
-filename = "persistentgamedata1.dat"
-achievements = [336, 354, 325]
+filename = ".\\rep_persistentgamedata1.dat"
+achievements = [638, 638, 638]
+
 
 def rshift(val, n): 
     return val>>n if val >= 0 else (val+0x100000000)>>n
@@ -49,9 +50,16 @@ def CalcAfterbirthChecksum(data, ofs, length):
     return ~checksum + 2 ** 32
 
 def unlock_secret(data, achievement):
-    new_data = data[:0x20 + achievement] + b'\x01' + data[0x20 + achievement + 1:] 
+    new_data = data[:0x20 + achievement] + data[0x20 + achievement + 1:] 
     return new_data
 
+def remove_counters(data):
+      new_data = data[:2666] + data[2666 + 1:] 
+      return new_data
+
+def replace_item_count(data):
+    new_data = data[:24] + b'~' + data[25:28] + b'~' + data[29:]
+    return new_data
 
 if __name__ == "__main__":
     offset = 0x10
@@ -61,10 +69,15 @@ if __name__ == "__main__":
         checksum = CalcAfterbirthChecksum(data, offset, length).to_bytes(5, 'little', signed=True)[:4]
         print(checksum)
         old_checksum = data[offset + length:]
-        assert checksum == old_checksum
     for achievement in achievements:
        data = unlock_secret(data, achievement)
+
+    for i in range(12):
+       data = remove_counters(data)
+
+    data = replace_item_count(data)
     
     with open(filename, 'wb') as file:
+        length = len(data) - offset - 4
         print(CalcAfterbirthChecksum(data, offset, length).to_bytes(5, 'little', signed=True)[:4])
         file.write(data[:offset + length] + CalcAfterbirthChecksum(data, offset, length).to_bytes(5, 'little', signed=True)[:4])
